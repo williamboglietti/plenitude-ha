@@ -9,8 +9,6 @@ import pytest
 from aioresponses import aioresponses
 
 from custom_components.plenitude.api.kraken import (
-    KrakenAuthError,
-    KrakenError,
     KrakenSession,
     PlenitudeKrakenClient,
 )

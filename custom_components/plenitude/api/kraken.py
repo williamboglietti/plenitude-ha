@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -68,15 +68,20 @@ class PlenitudeKrakenClient:
         exp = payload.get("exp")
         if not isinstance(exp, int):
             raise KrakenAuthError("obtainKrakenToken payload missing exp")
+        refresh_expires_in = data.get("refreshExpiresIn")
+        if not isinstance(refresh_expires_in, int):
+            raise KrakenAuthError("obtainKrakenToken response missing refreshExpiresIn")
         return KrakenSession(
             access_token=data["token"],
-            access_token_expires_at=datetime.fromtimestamp(exp, tz=timezone.utc),
+            access_token_expires_at=datetime.fromtimestamp(exp, tz=UTC),
             refresh_token=data["refreshToken"],
-            refresh_token_expires_in_seconds=int(data.get("refreshExpiresIn") or 0),
+            refresh_token_expires_in_seconds=refresh_expires_in,
             account_user_id=_account_user_id_from_sub(payload.get("sub")),
         )
 
-    async def _post(self, body: dict[str, Any], *, access_token: str | None = None) -> dict[str, Any]:
+    async def _post(
+        self, body: dict[str, Any], *, access_token: str | None = None
+    ) -> dict[str, Any]:
         headers = {
             "Content-Type": "application/json",
             "User-Agent": USER_AGENT,
@@ -97,7 +102,8 @@ def _format_errors(errors: list[dict[str, Any]]) -> str:
     for e in errors:
         code = (e.get("extensions") or {}).get("errorCode") or ""
         msg = e.get("message") or ""
-        parts.append(f"[{code}] {msg}".strip())
+        formatted = f"[{code}] {msg}".strip() if code else msg.strip()
+        parts.append(formatted)
     return "; ".join(parts) or "unknown Kraken error"
 
 
