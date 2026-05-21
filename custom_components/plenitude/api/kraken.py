@@ -58,6 +58,12 @@ mutation ObtainKrakenToken($input: ObtainJSONWebTokenInput!) {
 }
 """.strip()
 
+_INVALIDATE_REFRESH_MUTATION = """
+mutation InvalidateRefreshToken($input: InvalidateRefreshTokenInput!) {
+  invalidateRefreshToken(input: $input) { success }
+}
+""".strip()
+
 _VIEWER_QUERY = """
 query ViewerWithAccounts {
   viewer {
@@ -104,6 +110,18 @@ class PlenitudeKrakenClient:
             given_name=data.get("givenName"),
             accounts=accounts,
         )
+
+    async def invalidate_refresh_token(self, refresh_token: str) -> None:
+        """Best-effort cleanup: invalidate a refresh token. Never raises."""
+        body = {
+            "query": _INVALIDATE_REFRESH_MUTATION,
+            "variables": {"input": {"refreshToken": refresh_token}},
+        }
+        try:
+            await self._post(body)
+        except KrakenError:
+            # Swallowed: this is a cleanup-on-unload path; failure shouldn't bubble.
+            return
 
     async def _obtain_token(self, input_payload: dict[str, Any]) -> KrakenSession:
         body = {

@@ -113,3 +113,30 @@ async def test_get_viewer_raises_on_unauthorized() -> None:
             client = PlenitudeKrakenClient(http)
             with pytest.raises(KrakenAuthError):
                 await client.get_viewer("expired_token")
+
+
+@pytest.mark.asyncio
+async def test_invalidate_refresh_token_swallows_errors() -> None:
+    """invalidate_refresh_token() should never raise (best-effort cleanup)."""
+    with aioresponses() as mocked:
+        mocked.post(
+            KRAKEN_GRAPHQL_URL,
+            payload={"data": {"invalidateRefreshToken": {"success": True}}},
+        )
+
+        async with aiohttp.ClientSession() as http:
+            client = PlenitudeKrakenClient(http)
+            # Should not raise
+            await client.invalidate_refresh_token("rt_test")
+
+
+@pytest.mark.asyncio
+async def test_invalidate_refresh_token_does_not_raise_on_http_error() -> None:
+    """invalidate_refresh_token() ignores HTTP errors (best-effort cleanup)."""
+    with aioresponses() as mocked:
+        mocked.post(KRAKEN_GRAPHQL_URL, status=500)
+
+        async with aiohttp.ClientSession() as http:
+            client = PlenitudeKrakenClient(http)
+            # Should not raise
+            await client.invalidate_refresh_token("rt_test")
