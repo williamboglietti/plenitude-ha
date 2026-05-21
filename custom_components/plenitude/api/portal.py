@@ -14,7 +14,9 @@ from datetime import UTC, datetime, timedelta
 
 import aiohttp
 
-from ..const import PORTAL_BASE_URL, USER_AGENT
+from ..const import PORTAL_BASE_URL, PORTAL_CONTRACT_PATH, USER_AGENT
+from ..models import ContractTariffs
+from .rsc_parser import RscParseError, parse_rsc_tariffs
 
 
 class PortalError(Exception):
@@ -144,6 +146,35 @@ class PlenitudePortalClient:
             cookie_value=cookie_value,
             expires_at=expires_at,
         )
+
+
+    async def fetch_contract(self, session: PortalSession) -> ContractTariffs:
+        """Fetch the /contrat HTML and parse the RSC payload for tariffs."""
+        url = f"{self._base_url}{PORTAL_CONTRACT_PATH}"
+        headers = {
+            "Cookie": session.cookie_header,
+            "User-Agent": USER_AGENT,
+            "Accept": "text/html",
+        }
+        try:
+            async with self._http.get(url, headers=headers, allow_redirects=False) as resp:
+                if resp.status in (301, 302, 303, 307, 308):
+                    location = resp.headers.get("Location") or ""
+                    if "/auth/" in location or "connexion" in location:
+                        raise PortalAuthError("session expired (redirect to login)")
+                    raise PortalError(f"unexpected redirect to {location}")
+                if resp.status in (401, 403):
+                    raise PortalAuthError(f"portal returned HTTP {resp.status}")
+                if resp.status >= 400:
+                    raise PortalError(f"portal /contrat HTTP {resp.status}")
+                html_text = await resp.text()
+        except aiohttp.ClientError as err:
+            raise PortalError(f"portal /contrat HTTP error: {err}") from err
+
+        try:
+            return parse_rsc_tariffs(html_text)
+        except RscParseError as err:
+            raise PortalError(f"failed to parse tariffs from /contrat: {err}") from err
 
 
 def _build_login_body(

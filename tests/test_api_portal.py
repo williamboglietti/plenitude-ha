@@ -13,6 +13,7 @@ from custom_components.plenitude.api.portal import (
     PortalSession,
 )
 from custom_components.plenitude.const import PORTAL_BASE_URL
+from custom_components.plenitude.models import ContractTariffs
 
 
 @pytest.mark.asyncio
@@ -82,3 +83,39 @@ async def test_login_raises_when_no_session_cookie_set(fixtures_dir: Path) -> No
             client = PlenitudePortalClient(http)
             with pytest.raises(PortalAuthError):
                 await client.login("test@example.com", "wrong")
+
+
+@pytest.mark.asyncio
+async def test_fetch_contract_returns_tariffs(
+    fixtures_dir: Path, portal_session: PortalSession
+) -> None:
+    """fetch_contract() returns parsed ContractTariffs from the /contrat page."""
+    html_text = (fixtures_dir / "portal_contract_page.html").read_text(encoding="utf-8")
+
+    with aioresponses() as mocked:
+        mocked.get(f"{PORTAL_BASE_URL}/contrat", status=200, body=html_text)
+
+        async with aiohttp.ClientSession() as http:
+            client = PlenitudePortalClient(http)
+            tariffs = await client.fetch_contract(portal_session)
+
+    assert isinstance(tariffs, ContractTariffs)
+    assert tariffs.hp_eur_per_kwh > 0.0
+    assert tariffs.hc_eur_per_kwh > 0.0
+    assert tariffs.subscription_eur_per_month > 0.0
+
+
+@pytest.mark.asyncio
+async def test_fetch_contract_raises_on_redirect(portal_session: PortalSession) -> None:
+    """fetch_contract() raises PortalAuthError if the page redirects to login."""
+    with aioresponses() as mocked:
+        mocked.get(
+            f"{PORTAL_BASE_URL}/contrat",
+            status=307,
+            headers={"Location": "/auth/connexion"},
+        )
+
+        async with aiohttp.ClientSession() as http:
+            client = PlenitudePortalClient(http)
+            with pytest.raises(PortalAuthError):
+                await client.fetch_contract(portal_session)
