@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Plenitude — Connexion",
+        "description": "Saisissez vos identifiants Plenitude. Votre mot de passe n'est PAS conservé après cette étape ; nous gardons uniquement les jetons d'accès.",
+        "data": {
+          "email": "Adresse e-mail",
+          "password": "Mot de passe"
+        }
+      },
+      "tariffs": {
+        "title": "Plenitude — Tarifs détectés",
+        "description": "Voici les tarifs récupérés depuis votre espace client. Modifiez-les si nécessaire.",
+        "data": {
+          "tariff_hp_ttc": "Tarif Heures Pleines TTC (€/kWh)",
+          "tariff_hc_ttc": "Tarif Heures Creuses TTC (€/kWh)",
+          "tariff_subscription_ttc": "Abonnement TTC (€/mois)",
+          "scan_interval_hours": "Intervalle de mise à jour (heures)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Identifiants invalides.",
+      "cannot_connect": "Impossible de se connecter à Plenitude.",
+      "tariff_parse_failed": "Impossible de récupérer automatiquement vos tarifs. Saisissez-les manuellement à l'étape suivante."
+    },
+    "abort": {
+      "already_configured": "Ce compte Plenitude est déjà configuré."
+    }
+  }
+}
