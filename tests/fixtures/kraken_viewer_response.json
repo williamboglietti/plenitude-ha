@@ -1,0 +1,15 @@
+{
+  "data": {
+    "viewer": {
+      "id": "999999",
+      "email": "test@example.com",
+      "givenName": "Test",
+      "accounts": [
+        {
+          "number": "A-TEST0000",
+          "status": "ACTIVE"
+        }
+      ]
+    }
+  }
+}

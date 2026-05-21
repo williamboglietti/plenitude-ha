@@ -1,0 +1,17 @@
+{
+  "data": {
+    "obtainKrakenToken": {
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJrcmFrZW58YWNjb3VudC11c2VyOjY4MTgwMyIsImV4cCI6MTc3OTM0MDAwMCwiaWF0IjoxNzc5MzM2NDAwLCJvcmlnSWF0IjoxNzc5MzI3Nzc4LCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJ0b2tlblVzZSI6ImFjY2VzcyJ9.signature2",
+      "refreshToken": "rt_test_xyz789uvw321",
+      "refreshExpiresIn": 1209600,
+      "payload": {
+        "sub": "krakenaccount-user:999999",
+        "exp": 1779340000,
+        "iat": 1779336400,
+        "origIat": 1779327778,
+        "email": "test@example.com",
+        "tokenUse": "access"
+      }
+    }
+  }
+}

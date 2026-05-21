@@ -1,0 +1,20 @@
+{
+  "data": {
+    "account": {
+      "number": "A-TEST0000",
+      "electricityAgreements": [
+        {
+          "id": "965356",
+          "validFrom": "2025-05-24T22:00:00+00:00",
+          "validTo": "2027-05-24T22:00:00+00:00",
+          "meterPoint": {
+            "id": "12345678901234"
+          }
+        }
+      ]
+    },
+    "consumptions": [
+      {"siteId": "A-TEST0000", "intervalStart": "2026-04-29T22:00:00Z", "value": 445, "unit": "kWh", "hp": 253, "hc": 192}
+    ]
+  }
+}

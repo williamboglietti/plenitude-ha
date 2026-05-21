@@ -1,0 +1,15 @@
+{
+  "errors": [
+    {
+      "message": "Unauthorized.",
+      "locations": [{"line": 1, "column": 3}],
+      "path": ["account"],
+      "extensions": {
+        "errorType": "AUTHORIZATION",
+        "errorCode": "KT-CT-1111",
+        "errorDescription": "The viewer is not authorized to execute the query/mutation. Check authentication or roles/permissions."
+      }
+    }
+  ],
+  "data": {"account": null}
+}
