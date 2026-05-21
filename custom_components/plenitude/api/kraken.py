@@ -29,6 +29,24 @@ class KrakenSession:
     account_user_id: str | None = None  # extracted from JWT.sub when available
 
 
+@dataclass(slots=True, frozen=True)
+class AccountRef:
+    """A Kraken account reference."""
+
+    number: str
+    status: str
+
+
+@dataclass(slots=True, frozen=True)
+class ViewerInfo:
+    """The authenticated user's basic profile."""
+
+    user_id: str
+    email: str
+    given_name: str | None
+    accounts: tuple[AccountRef, ...]
+
+
 _OBTAIN_TOKEN_MUTATION = """
 mutation ObtainKrakenToken($input: ObtainJSONWebTokenInput!) {
   obtainKrakenToken(input: $input) {
@@ -36,6 +54,17 @@ mutation ObtainKrakenToken($input: ObtainJSONWebTokenInput!) {
     refreshToken
     refreshExpiresIn
     payload
+  }
+}
+""".strip()
+
+_VIEWER_QUERY = """
+query ViewerWithAccounts {
+  viewer {
+    id
+    email
+    givenName
+    accounts { number status }
   }
 }
 """.strip()
@@ -56,6 +85,26 @@ class PlenitudeKrakenClient:
         """Exchange a refresh token for a new KrakenSession."""
         return await self._obtain_token({"refreshToken": refresh_token})
 
+    async def get_viewer(self, access_token: str) -> ViewerInfo:
+        """Fetch the authenticated user and their accounts."""
+        resp = await self._post({"query": _VIEWER_QUERY}, access_token=access_token)
+        errors = resp.get("errors")
+        if errors:
+            raise _classify_errors(errors)
+        data = (resp.get("data") or {}).get("viewer")
+        if not data:
+            raise KrakenError("viewer query returned no data")
+        accounts = tuple(
+            AccountRef(number=a["number"], status=a["status"])
+            for a in data.get("accounts") or []
+        )
+        return ViewerInfo(
+            user_id=str(data["id"]),
+            email=str(data["email"]),
+            given_name=data.get("givenName"),
+            accounts=accounts,
+        )
+
     async def _obtain_token(self, input_payload: dict[str, Any]) -> KrakenSession:
         body = {
             "query": _OBTAIN_TOKEN_MUTATION,
@@ -64,7 +113,7 @@ class PlenitudeKrakenClient:
         resp = await self._post(body)
         errors = resp.get("errors")
         if errors:
-            raise KrakenAuthError(_format_errors(errors))
+            raise _classify_errors(errors)
         data = (resp.get("data") or {}).get("obtainKrakenToken")
         if not data or not data.get("token"):
             raise KrakenAuthError("obtainKrakenToken returned no token")
@@ -99,6 +148,23 @@ class PlenitudeKrakenClient:
                 return await resp.json()
         except aiohttp.ClientError as err:
             raise KrakenError(f"Kraken HTTP error: {err}") from err
+
+
+_AUTH_ERROR_CODES = frozenset({
+    "KT-CT-1111",  # unauthorized
+    "KT-CT-1124",  # JWT signature expired
+    "KT-CT-1134",  # invalid refresh token (best-effort guess; treat as auth)
+    "KT-CT-1138",  # invalid credentials
+})
+
+
+def _classify_errors(errors: list[dict[str, Any]]) -> KrakenError:
+    """Return KrakenAuthError for auth-related codes, KrakenError otherwise."""
+    for err in errors:
+        code = (err.get("extensions") or {}).get("errorCode")
+        if code in _AUTH_ERROR_CODES:
+            return KrakenAuthError(_format_errors(errors))
+    return KrakenError(_format_errors(errors))
 
 
 def _format_errors(errors: list[dict[str, Any]]) -> str:

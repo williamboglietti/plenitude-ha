@@ -72,3 +72,44 @@ async def test_refresh_raises_on_invalid_token() -> None:
             client = PlenitudeKrakenClient(http)
             with pytest.raises(KrakenAuthError):
                 await client.refresh("rt_bad")
+
+
+@pytest.mark.asyncio
+async def test_get_viewer_returns_account_numbers(fixtures_dir: Path) -> None:
+    """get_viewer() should call the viewer query and parse the response."""
+    response = json.loads((fixtures_dir / "kraken_viewer_response.json").read_text())
+
+    with aioresponses() as mocked:
+        mocked.post(KRAKEN_GRAPHQL_URL, payload=response)
+
+        async with aiohttp.ClientSession() as http:
+            client = PlenitudeKrakenClient(http)
+            viewer = await client.get_viewer("access_token_123")
+
+    assert viewer.user_id == "999999"
+    assert viewer.email == "test@example.com"
+    assert len(viewer.accounts) == 1
+    assert viewer.accounts[0].number == "A-TEST0000"
+    assert viewer.accounts[0].status == "ACTIVE"
+
+
+@pytest.mark.asyncio
+async def test_get_viewer_raises_on_unauthorized() -> None:
+    """get_viewer() should raise KrakenAuthError when token is expired/invalid."""
+    error_response = {
+        "errors": [
+            {
+                "message": "Signature of the JWT has expired.",
+                "extensions": {"errorCode": "KT-CT-1124", "errorType": "APPLICATION"},
+            }
+        ],
+        "data": {"viewer": None},
+    }
+
+    with aioresponses() as mocked:
+        mocked.post(KRAKEN_GRAPHQL_URL, payload=error_response)
+
+        async with aiohttp.ClientSession() as http:
+            client = PlenitudeKrakenClient(http)
+            with pytest.raises(KrakenAuthError):
+                await client.get_viewer("expired_token")
