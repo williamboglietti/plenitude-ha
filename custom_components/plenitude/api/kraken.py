@@ -52,6 +52,10 @@ class PlenitudeKrakenClient:
         """Authenticate with email/password and return a KrakenSession."""
         return await self._obtain_token({"email": email, "password": password})
 
+    async def refresh(self, refresh_token: str) -> KrakenSession:
+        """Exchange a refresh token for a new KrakenSession."""
+        return await self._obtain_token({"refreshToken": refresh_token})
+
     async def _obtain_token(self, input_payload: dict[str, Any]) -> KrakenSession:
         body = {
             "query": _OBTAIN_TOKEN_MUTATION,
