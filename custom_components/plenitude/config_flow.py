@@ -51,6 +51,12 @@ class PlenitudeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    @staticmethod
+    def async_get_options_flow(
+        entry: config_entries.ConfigEntry,
+    ) -> PlenitudeOptionsFlow:
+        return PlenitudeOptionsFlow(entry)
+
     def __init__(self) -> None:
         self._email: str | None = None
         self._kraken_refresh_token: str | None = None
@@ -200,4 +206,73 @@ class PlenitudeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_HC_PERIODS: hc_periods,
                 CONF_SCAN_INTERVAL_HOURS: user_input[CONF_SCAN_INTERVAL_HOURS],
             },
+        )
+
+
+class PlenitudeOptionsFlow(config_entries.OptionsFlow):
+    """Options flow for re-authentication."""
+
+    def __init__(self, entry: config_entries.ConfigEntry) -> None:
+        self._entry = entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        return await self.async_step_reauth(user_input)
+
+    async def async_step_reauth(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Prompt for password, re-auth, store new tokens."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            email = self._entry.data[CONF_EMAIL]
+            password = user_input[CONF_PASSWORD]
+
+            try:
+                async with aiohttp.ClientSession() as http:
+                    kraken_client = PlenitudeKrakenClient(http)
+                    portal_client = PlenitudePortalClient(http)
+                    try:
+                        k_session = await kraken_client.login(email, password)
+                        p_session = await portal_client.login(email, password)
+                    except (KrakenAuthError, PortalAuthError):
+                        errors["base"] = "invalid_auth"
+                    except (KrakenError, PortalError):
+                        errors["base"] = "cannot_connect"
+                    else:
+                        self.hass.config_entries.async_update_entry(
+                            self._entry,
+                            data={
+                                **self._entry.data,
+                                CONF_REFRESH_TOKEN: k_session.refresh_token,
+                                CONF_REFRESH_TOKEN_EXPIRES_AT: (
+                                    k_session.refresh_token_expires_in_seconds
+                                ),
+                                CONF_PORTAL_COOKIE: {
+                                    "name": p_session.cookie_name,
+                                    "value": p_session.cookie_value,
+                                },
+                                CONF_PORTAL_COOKIE_EXPIRES_AT: (
+                                    p_session.expires_at.isoformat()
+                                ),
+                            },
+                        )
+                        await self.hass.config_entries.async_reload(self._entry.entry_id)
+                        return self.async_create_entry(title="", data={})
+            except aiohttp.ClientError:
+                errors["base"] = "cannot_connect"
+
+        return self.async_show_form(
+            step_id="reauth",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_PASSWORD): selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            type=selector.TextSelectorType.PASSWORD
+                        )
+                    )
+                }
+            ),
+            errors=errors,
         )

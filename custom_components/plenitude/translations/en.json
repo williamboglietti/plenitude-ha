@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Plenitude — Sign in",
+        "description": "Enter your Plenitude credentials. Your password is NOT kept after this step; only the access tokens are stored.",
+        "data": {
+          "email": "Email address",
+          "password": "Password"
+        }
+      },
+      "tariffs": {
+        "title": "Plenitude — Detected tariffs",
+        "description": "Tariffs auto-detected from your customer portal. Edit if needed.",
+        "data": {
+          "tariff_hp_ttc": "Peak hours tariff incl. tax (EUR/kWh)",
+          "tariff_hc_ttc": "Off-peak hours tariff incl. tax (EUR/kWh)",
+          "tariff_subscription_ttc": "Monthly subscription incl. tax (EUR)",
+          "scan_interval_hours": "Polling interval (hours)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid credentials.",
+      "cannot_connect": "Cannot reach Plenitude.",
+      "tariff_parse_failed": "Could not auto-detect tariffs. Enter them manually on the next step."
+    },
+    "abort": {
+      "already_configured": "This Plenitude account is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "reauth": {
+        "title": "Plenitude — Re-authentication",
+        "description": "Has the password for your account changed? Enter the new one to refresh the tokens.",
+        "data": {
+          "password": "New password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid credentials.",
+      "cannot_connect": "Cannot reach Plenitude."
+    }
+  }
+}
