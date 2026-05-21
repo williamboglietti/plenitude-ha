@@ -178,7 +178,7 @@ class PlenitudeKrakenClient:
                     raise KrakenAuthError(f"BFF tRPC rejected token: HTTP {resp.status}")
                 if resp.status >= 500:
                     raise KrakenError(f"BFF tRPC returned HTTP {resp.status}")
-                body = await resp.json()
+                body: dict[str, Any] = await resp.json()
         except aiohttp.ClientError as err:
             raise KrakenError(f"BFF tRPC HTTP error: {err}") from err
 
@@ -273,7 +273,8 @@ class PlenitudeKrakenClient:
             async with self._http.post(self._endpoint, json=body, headers=headers) as resp:
                 if resp.status >= 500:
                     raise KrakenError(f"Kraken returned HTTP {resp.status}")
-                return await resp.json()
+                data: dict[str, Any] = await resp.json()
+                return data
         except aiohttp.ClientError as err:
             raise KrakenError(f"Kraken HTTP error: {err}") from err
 
