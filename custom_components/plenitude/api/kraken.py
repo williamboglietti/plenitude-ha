@@ -1,13 +1,20 @@
 """GraphQL client for the Kraken Tech API (Plenitude France)."""
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import quote
 
 import aiohttp
 
 from ..const import KRAKEN_GRAPHQL_URL, USER_AGENT
+from ..models import ConsumptionInterval, ConsumptionSnapshot
+
+_BFF_CONSUMPTION_URL = (
+    "https://portal-api.eniplenitude.fr/api/trpc/b2c.consumptions.getBySiteIds"
+)
 
 
 class KrakenError(Exception):
@@ -122,6 +129,109 @@ class PlenitudeKrakenClient:
         except KrakenError:
             # Swallowed: this is a cleanup-on-unload path; failure shouldn't bubble.
             return
+
+    async def get_consumption(
+        self,
+        *,
+        access_token: str,
+        site_id: str,
+        start: datetime,
+        end: datetime,
+        group_by: str = "HALF_HOUR",
+    ) -> ConsumptionSnapshot:
+        """Fetch a consumption snapshot for the given range.
+
+        Routes through the Plenitude BFF tRPC endpoint
+        (portal-api.eniplenitude.fr/api/trpc/b2c.consumptions.getBySiteIds), which
+        wraps the Kraken Tech detailedMeasures query and exposes a friendlier
+        JSON shape with HP/HC breakdown already separated.
+
+        The BFF accepts the same Kraken JWT as the direct GraphQL endpoint.
+        """
+        input_payload = {
+            "json": {
+                "startAt": start.isoformat().replace("+00:00", "Z"),
+                "endAt": end.isoformat().replace("+00:00", "Z"),
+                "sites": [{"id": site_id, "type": "ELECTRICITY"}],
+                "groupBy": group_by,
+            },
+            "meta": {
+                "values": {
+                    "startAt": ["Date"],
+                    "endAt": ["Date"],
+                }
+            },
+        }
+        url = f"{_BFF_CONSUMPTION_URL}?input={quote(json.dumps(input_payload), safe='')}"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "User-Agent": USER_AGENT,
+            "x-portal-app-version": "3.23.1+8da6e0c4",
+            "x-trpc-source": "nextjs-react",
+            "Origin": "https://espace-client.eniplenitude.fr",
+            "Referer": "https://espace-client.eniplenitude.fr/",
+        }
+        try:
+            async with self._http.get(url, headers=headers) as resp:
+                if resp.status in (401, 403):
+                    raise KrakenAuthError(f"BFF tRPC rejected token: HTTP {resp.status}")
+                if resp.status >= 500:
+                    raise KrakenError(f"BFF tRPC returned HTTP {resp.status}")
+                body = await resp.json()
+        except aiohttp.ClientError as err:
+            raise KrakenError(f"BFF tRPC HTTP error: {err}") from err
+
+        return self._parse_bff_consumption(body, site_id)
+
+    @staticmethod
+    def _parse_bff_consumption(body: dict[str, Any], site_id: str) -> ConsumptionSnapshot:
+        """Parse the BFF tRPC consumption response into a ConsumptionSnapshot."""
+        sites = (((body.get("result") or {}).get("data") or {}).get("json")) or []
+        site_data = next((s for s in sites if s.get("siteId") == site_id), None)
+        if site_data is None:
+            return ConsumptionSnapshot(site_id=site_id)
+
+        electricity = site_data.get("electricity") or {}
+        raw_intervals = electricity.get("consumptions") or []
+
+        intervals: list[ConsumptionInterval] = []
+        last_reading: datetime | None = None
+        for raw in raw_intervals:
+            read_at_str = raw.get("readAt")
+            if not read_at_str:
+                continue
+            interval_start = datetime.fromisoformat(read_at_str.replace("Z", "+00:00"))
+            if last_reading is None or interval_start > last_reading:
+                last_reading = interval_start
+
+            kwh_total = float(raw.get("value") or 0)
+            details = raw.get("details") or []
+            kwh_hp = next(
+                (float(d.get("value") or 0) for d in details if d.get("type") == "HP"),
+                0.0,
+            )
+            kwh_hc = next(
+                (float(d.get("value") or 0) for d in details if d.get("type") == "HC"),
+                0.0,
+            )
+
+            intervals.append(
+                ConsumptionInterval(
+                    start=interval_start,
+                    end=interval_start,
+                    kwh_total=kwh_total,
+                    kwh_hp=kwh_hp,
+                    kwh_hc=kwh_hc,
+                    unit="kWh",
+                )
+            )
+
+        return ConsumptionSnapshot(
+            site_id=site_id,
+            intervals=tuple(intervals),
+            last_reading_at=last_reading,
+        )
 
     async def _obtain_token(self, input_payload: dict[str, Any]) -> KrakenSession:
         body = {

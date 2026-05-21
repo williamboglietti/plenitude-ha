@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import re
+from datetime import UTC, datetime
 from pathlib import Path
 
 import aiohttp
@@ -14,6 +16,7 @@ from custom_components.plenitude.api.kraken import (
     PlenitudeKrakenClient,
 )
 from custom_components.plenitude.const import KRAKEN_GRAPHQL_URL
+from custom_components.plenitude.models import ConsumptionSnapshot
 
 
 @pytest.mark.asyncio
@@ -140,3 +143,36 @@ async def test_invalidate_refresh_token_does_not_raise_on_http_error() -> None:
             client = PlenitudeKrakenClient(http)
             # Should not raise
             await client.invalidate_refresh_token("rt_test")
+
+
+@pytest.mark.asyncio
+async def test_get_consumption_parses_intervals(fixtures_dir: Path) -> None:
+    """get_consumption() returns a ConsumptionSnapshot with HP/HC breakdown."""
+    response = json.loads((fixtures_dir / "kraken_consumption_response.json").read_text())
+
+    # The BFF endpoint is on portal-api.eniplenitude.fr, NOT api.plenitudefr-kraken.energy
+    bff_url_prefix = "https://portal-api.eniplenitude.fr/api/trpc/b2c.consumptions.getBySiteIds"
+
+    with aioresponses() as mocked:
+        mocked.get(re.compile(rf"^{re.escape(bff_url_prefix)}\?input=.*"), payload=response)
+
+        async with aiohttp.ClientSession() as http:
+            client = PlenitudeKrakenClient(http)
+            snapshot = await client.get_consumption(
+                access_token="tok",
+                site_id="A-TEST0000",
+                start=datetime(2025, 11, 1, tzinfo=UTC),
+                end=datetime(2026, 5, 1, tzinfo=UTC),
+                group_by="month",
+            )
+
+    assert isinstance(snapshot, ConsumptionSnapshot)
+    assert snapshot.site_id == "A-TEST0000"
+    assert len(snapshot.intervals) == 6
+    # Verify HP/HC breakdown is preserved
+    last = snapshot.intervals[-1]
+    assert last.kwh_total == 445.0
+    assert last.kwh_hp == 253.0
+    assert last.kwh_hc == 192.0
+    # Verify last_reading_at is set to the most recent interval start
+    assert snapshot.last_reading_at == datetime(2026, 4, 29, 22, 0, tzinfo=UTC)

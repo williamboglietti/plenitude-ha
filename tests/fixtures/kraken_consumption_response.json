@@ -1,20 +1,23 @@
 {
-  "data": {
-    "account": {
-      "number": "A-TEST0000",
-      "electricityAgreements": [
-        {
-          "id": "965356",
-          "validFrom": "2025-05-24T22:00:00+00:00",
-          "validTo": "2027-05-24T22:00:00+00:00",
-          "meterPoint": {
-            "id": "12345678901234"
-          }
-        }
-      ]
-    },
-    "consumptions": [
-      {"siteId": "A-TEST0000", "intervalStart": "2026-04-29T22:00:00Z", "value": 445, "unit": "kWh", "hp": 253, "hc": 192}
-    ]
+  "result": {
+    "data": {
+      "json": [{
+        "siteId": "A-TEST0000",
+        "electricity": {
+          "consumptions": [
+            {"value": 425, "readAt": "2025-11-29T23:00:00.000Z", "unit": "kwh", "details": [{"type": "HC", "value": 194}, {"type": "HP", "value": 231}]},
+            {"value": 444, "readAt": "2025-12-30T23:00:00.000Z", "unit": "kwh", "details": [{"type": "HC", "value": 176}, {"type": "HP", "value": 268}]},
+            {"value": 426, "readAt": "2026-01-30T23:00:00.000Z", "unit": "kwh", "details": [{"type": "HP", "value": 278}, {"type": "HC", "value": 148}]},
+            {"value": 447, "readAt": "2026-02-27T23:00:00.000Z", "unit": "kwh", "details": [{"type": "HP", "value": 277}, {"type": "HC", "value": 170}]},
+            {"value": 551, "readAt": "2026-03-30T22:00:00.000Z", "unit": "kwh", "details": [{"type": "HC", "value": 245}, {"type": "HP", "value": 306}]},
+            {"value": 445, "readAt": "2026-04-29T22:00:00.000Z", "unit": "kwh", "details": [{"type": "HP", "value": 253}, {"type": "HC", "value": 192}]}
+          ],
+          "totalBase": 2738,
+          "totalHP": 1613,
+          "totalHC": 1125
+        },
+        "gas": null
+      }]
+    }
   }
 }
