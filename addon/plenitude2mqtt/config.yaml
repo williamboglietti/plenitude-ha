@@ -1,0 +1,33 @@
+name: Plenitude2MQTT
+version: "0.1.0"
+slug: plenitude2mqtt
+description: >
+  Polls Plenitude France (Eni Plenitude / Kraken Tech) consumption + tariffs
+  and publishes to MQTT with auto-discovery for Home Assistant.
+url: "https://github.com/williamboglietti/plenitude-ha"
+arch:
+  - amd64
+  - aarch64
+  - armv7
+  - armhf
+  - i386
+startup: services
+boot: auto
+init: false
+services:
+  - mqtt:need
+options:
+  email: ""
+  password: ""
+  scan_interval_hours: 1
+  mqtt_topic_prefix: "plenitude"
+  mqtt_discovery_prefix: "homeassistant"
+  log_level: "info"
+schema:
+  email: email
+  password: password
+  scan_interval_hours: int(1,24)
+  mqtt_topic_prefix: str
+  mqtt_discovery_prefix: str
+  log_level: list(trace|debug|info|notice|warning|error|fatal)
+image: ""
