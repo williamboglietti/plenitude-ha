@@ -93,6 +93,10 @@ async def ensure_portal_session(
     return await portal_client.login(email, password)
 
 
+def _start_of_month(now: datetime) -> datetime:
+    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
 def build_sensor_state(
     *,
     site_id: str,
@@ -100,13 +104,26 @@ def build_sensor_state(
     tariffs: ContractTariffs,
     now: datetime,
 ) -> SensorState:
-    """Assemble the SensorState from a fresh snapshot + tariffs."""
-    cost = calculate_cost(snapshot, tariffs, now=now)
+    """Assemble the SensorState from a fresh snapshot + tariffs.
+
+    Consumption and cost are aggregated **from the 1st of the current month**.
+    HA's `total_increasing` state class then sees a monotonically growing value
+    that resets on the 1st (the Energy dashboard handles this as a normal meter
+    cycle). The caller must fetch a snapshot covering at least from the 1st of
+    the month to `now`.
+    """
+    month_start = _start_of_month(now)
+    monthly = ConsumptionSnapshot(
+        site_id=snapshot.site_id,
+        intervals=tuple(i for i in snapshot.intervals if i.start >= month_start),
+        last_reading_at=snapshot.last_reading_at,
+    )
+    cost = calculate_cost(monthly, tariffs, now=now)
     return SensorState(
         site_id=site_id,
-        conso_totale_kwh=snapshot.total_kwh,
-        conso_hp_kwh=snapshot.total_hp_kwh,
-        conso_hc_kwh=snapshot.total_hc_kwh,
+        conso_totale_kwh=round(monthly.total_kwh, 3),
+        conso_hp_kwh=round(monthly.total_hp_kwh, 3),
+        conso_hc_kwh=round(monthly.total_hc_kwh, 3),
         cout_total_eur=round(cost.total_eur, 4),
         cout_hp_eur=round(cost.hp_eur, 4),
         cout_hc_eur=round(cost.hc_eur, 4),
@@ -212,12 +229,20 @@ async def run(options: AddonOptions) -> None:
                             kraken_session.refresh_token
                         )
 
-                    # Fetch consumption
+                    # Fetch consumption. Window must cover the 1st of the
+                    # current month (build_sensor_state aggregates from there),
+                    # plus a 2-day cushion for Enedis' publication delay. On the
+                    # first days of a new month, fall back to a 14-day window so
+                    # we still have something to publish.
                     now = datetime.now(tz=UTC)
+                    fetch_start = min(
+                        _start_of_month(now) - timedelta(days=2),
+                        now - timedelta(days=14),
+                    )
                     snapshot = await kraken_client.get_consumption(
                         access_token=kraken_session.access_token,
                         site_id=site_id,
-                        start=now - timedelta(days=2),
+                        start=fetch_start,
                         end=now,
                         group_by="HALF_HOUR",
                     )
