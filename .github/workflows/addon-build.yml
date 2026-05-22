@@ -1,0 +1,31 @@
+name: Add-on build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'addon/**'
+      - '.github/workflows/addon-build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'addon/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, aarch64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build add-on
+        uses: home-assistant/builder@2024.03.5
+        with:
+          args: |
+            --${{ matrix.arch }} \
+            --target /data/addon/plenitude2mqtt \
+            --image plenitude2mqtt-{arch} \
+            --version 0.1.0 \
+            --test
