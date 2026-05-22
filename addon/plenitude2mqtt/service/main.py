@@ -11,7 +11,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 
 import aiohttp
-import asyncio_mqtt as aiomqtt
+import aiomqtt
 
 from .api.kraken import (
     KrakenAuthError,

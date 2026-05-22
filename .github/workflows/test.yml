@@ -23,7 +23,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-asyncio aioresponses aiohttp ruff mypy
           pip install pytest-homeassistant-custom-component
-          pip install "asyncio-mqtt>=0.16"
+          pip install "aiomqtt>=2.0,<3"
 
       - name: Verify add-on API client is in sync
         run: ./scripts/check_sync.sh

@@ -1,2 +1,2 @@
 aiohttp>=3.9
-asyncio-mqtt>=0.16
+aiomqtt>=2.0,<3
