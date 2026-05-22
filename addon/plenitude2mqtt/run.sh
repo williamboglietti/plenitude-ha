@@ -11,7 +11,7 @@ export PLENITUDE_MQTT_DISCOVERY_PREFIX="$(bashio::config 'mqtt_discovery_prefix'
 export PLENITUDE_LOG_LEVEL="$(bashio::config 'log_level')"
 
 # Supervisor injects MQTT_* env vars when services: ["mqtt:need"] is declared
-bashio::log.info "MQTT broker: ${MQTT_HOST}:${MQTT_PORT} (user=${MQTT_USER})"
+bashio::log.info "MQTT broker: ${MQTT_HOST}:${MQTT_PORT}"
 
 cd /opt/plenitude2mqtt
 exec python3 -m service.main

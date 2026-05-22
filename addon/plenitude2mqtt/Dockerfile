@@ -12,6 +12,4 @@ RUN pip install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 COPY service /opt/plenitude2mqtt/service
 COPY run.sh /
 
-RUN chmod a+x /run.sh
-
 CMD ["/run.sh"]
