@@ -6,7 +6,6 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-
 DEFAULT_OPTIONS_PATH = Path("/data/options.json")
 
 

@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import json
-import os
+
+# Add the add-on service path to sys.path so we can import it directly in tests
+import sys
 from pathlib import Path
 
 import pytest
 
-# Add the add-on service path to sys.path so we can import it directly in tests
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "addon" / "plenitude2mqtt"))
 
 from service.options_loader import AddonOptions, load_options
